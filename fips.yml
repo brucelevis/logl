@@ -1,0 +1,15 @@
+#
+# learnopengl-examples
+#
+---
+policies:
+  no_auto_import: true
+imports:
+  sokol:
+    git: https://github.com/floooh/sokol
+    branch: master
+  sokol-tools-bin:
+    git: https://github.com/floooh/sokol-tools-bin
+    branch: master
+  fips-utils:
+    git: https://github.com/fips-libs/fips-utils

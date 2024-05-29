@@ -54,6 +54,12 @@ macro(sokol_config)
 endmacro()
 
 include_directories(libs)
+include_directories(libs/cgltf)
+include_directories(libs/fast_obj)
+include_directories(libs/hmm)
+include_directories(libs/sokol)
+include_directories(libs/stb)
+
 fips_ide_group("Libs")
 add_subdirectory(libs)
 fips_ide_group("Src")

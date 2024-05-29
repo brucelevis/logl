@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "sokol/sokol_helper.h"
-#include "hmm/HandmadeMath.h"
+#include "sokol_helper.h"
+#include "HandmadeMath.h"
 #include "1-directional-light.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -143,7 +143,7 @@ static void init(void) {
 void frame(void) {
     lopgl_update();
 
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = state.pass_action, .swapchain = sglue_swapchain() });
 
     sg_apply_pipeline(state.pip);
     sg_apply_bindings(&state.bind);
@@ -177,7 +177,7 @@ void frame(void) {
     for(size_t i = 0; i < 10; i++) {
         HMM_Mat4 model = HMM_Translate(state.cube_positions[i]);
         float angle = 20.0f * i; 
-        model = HMM_MulM4(model, HMM_Rotate_RH(angle, HMM_V3(1.0f, 0.3f, 0.5f)));
+        model = HMM_MulM4(model, HMM_Rotate_RH(HMM_AngleDeg(angle), HMM_V3(1.0f, 0.3f, 0.5f)));
         vs_params.model = model;
         sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, &SG_RANGE(vs_params));
 

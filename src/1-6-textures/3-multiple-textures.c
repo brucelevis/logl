@@ -5,7 +5,7 @@
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
 #include "sokol_fetch.h"
-#include "sokol/sokol_helper.h"
+#include "sokol_helper.h"
 #define STB_IMAGE_IMPLEMENTATION
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -33,7 +33,7 @@ static void fetch_callback(const sfetch_response_t*);
 
 static void init(void) {
     sg_setup(&(sg_desc){
-        .context = sapp_sgcontext()
+        .environment = sglue_environment()
     });
 
     /* setup sokol-fetch
@@ -163,7 +163,7 @@ static void fetch_callback(const sfetch_response_t* response) {
 
 void frame(void) {
     sfetch_dowork();
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = state.pass_action, .swapchain = sglue_swapchain() });
     sg_apply_pipeline(state.pip);
     sg_apply_bindings(&state.bind);
     sg_draw(0, 6, 1);

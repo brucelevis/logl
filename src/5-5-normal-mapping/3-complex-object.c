@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "hmm/HandmadeMath.h"
-#include "sokol/sokol_helper.h"
+#include "HandmadeMath.h"
+#include "sokol_helper.h"
 #include "3-complex-object.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -180,7 +180,10 @@ static void render_ui() {
 void frame(void) {
     lopgl_update();
 
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){
+        .action = state.pass_action,
+        .swapchain = sglue_swapchain(),
+    });
 
     if (state.mesh.face_count > 0) {
         sg_apply_pipeline(state.mesh.pip);

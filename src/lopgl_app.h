@@ -3,8 +3,9 @@
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_fetch.h"
+#define SOKOL_LOG_IMPL
 #include <sokol_log.h>
-#include "hmm/HandmadeMath.h"
+#include "HandmadeMath.h"
 #include "../libs/fast_obj/lopgl_fast_obj.h"
 
 /*
@@ -155,7 +156,7 @@ void lopgl_load_obj(const lopgl_obj_request_t* request);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
-#include "stb/stb_image.h"
+#include "stb_image.h"
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
@@ -163,8 +164,8 @@ void lopgl_load_obj(const lopgl_obj_request_t* request);
 
 
 #define HANDMADE_MATH_IMPLEMENTATION
-#define HANDMADE_MATH_NO_SSE
-#include "hmm/HandmadeMath.h"
+#define HANDMADE_MATH_NO_SIMD
+#include "HandmadeMath.h"
 #undef HANDMADE_MATH_IMPLEMENTATION
 
 #define FAST_OBJ_IMPLEMENTATION
@@ -266,8 +267,8 @@ static lopgl_state_t _lopgl;
 
 void lopgl_setup() {
     sg_setup(&(sg_desc){
-        .context = sapp_sgcontext(),
-        //.logger.func = slog_func,
+        .environment = sglue_environment(),
+        .logger.func = slog_func,
     });
 
     /* initialize sokol_time */
@@ -298,7 +299,7 @@ void lopgl_setup() {
         .heading = 0.f,
         .distance = 6.f,
         .zoom_speed = .5f,
-        .rotate_speed = 0.01f,
+        .rotate_speed = HMM_AngleDeg(1.f),
         .min_dist = 1.f,
         .max_dist = 10.f,
         .min_pitch = -89.f,
@@ -339,7 +340,7 @@ void lopgl_update() {
     _lopgl.frame_time = stm_laptime(&_lopgl.time_stamp);
     
     if (_lopgl.fp_enabled) {
-        update_fp_camera(&_lopgl.fp_cam, stm_ms(_lopgl.frame_time));
+        update_fp_camera(&_lopgl.fp_cam, (float)stm_ms(_lopgl.frame_time));
     }
 }
 
@@ -538,8 +539,8 @@ void lopgl_render_gles2_fallback(void) {
     const sg_pass_action pass_action = {
         .colors[0] = { .load_action = SG_LOADACTION_CLEAR, .clear_value = { 1.0f, 0.0f, 0.0f, 1.0f } },
     };
-    sg_begin_default_pass(&pass_action, sapp_width(), sapp_height());
-    
+    sg_begin_pass(&(sg_pass){ .action = pass_action, .swapchain = sglue_swapchain() });
+
     sdtx_canvas(sapp_width()*0.5f, sapp_height()*0.5f);
     sdtx_origin(0.25f, 0.25f);
     sdtx_home();
@@ -610,7 +611,7 @@ static void mtl_fetch_callback(const sfetch_response_t* response) {
     lopgl_obj_request_data req_data = *(lopgl_obj_request_data*)response->user_data;
 
     if (response->fetched) {
-        fast_obj_mtllib_read(req_data.mesh, response->data.ptr, response->data.size);
+        fast_obj_mtllib_read(req_data.mesh, response->data.ptr, (unsigned int)response->data.size);
         req_data.callback(&(lopgl_obj_response_t){
             .mesh = req_data.mesh,
             .user_data_ptr = req_data.user_data_ptr
@@ -630,7 +631,7 @@ static void obj_fetch_callback(const sfetch_response_t* response) {
         /* the file data has been fetched, since we provided a big-enough
            buffer we can be sure that all data has been loaded here
         */
-        req_data.mesh = fast_obj_read(response->data.ptr, response->data.size);
+        req_data.mesh = fast_obj_read(response->data.ptr, (unsigned int)response->data.size);
 
         for (unsigned int i = 0; i < req_data.mesh->mtllib_count; ++i) {
             sfetch_range_t buffer = req_data.buffer_ptr != NULL ? (sfetch_range_t){req_data.buffer_ptr, req_data.buffer_size} : req_data.buffer;
@@ -670,7 +671,7 @@ void lopgl_load_obj(const lopgl_obj_request_t* request) {
         .fail_callback = request->fail_callback,
         .buffer_ptr = request->buffer_ptr,
         .buffer_size = request->buffer_size,
-        .user_data_ptr = request->user_data_ptr
+        .user_data_ptr = (void*)request->user_data_ptr
     };
 
     sfetch_range_t buffer = request->buffer_ptr != NULL ? (sfetch_range_t){request->buffer_ptr, request->buffer_size} : request->buffer;
@@ -740,7 +741,7 @@ static void cubemap_fetch_callback(const sfetch_response_t* response) {
     _cubemap_request_t* request = req_inst.request;
 
     if (response->fetched) {
-        request->fetched_sizes[req_inst.index] = response->data.size;
+        request->fetched_sizes[req_inst.index] = (int)response->data.size;
         ++request->finished_requests;
     }
     else if (response->failed) {
@@ -858,8 +859,8 @@ void handle_input_orbital(struct orbital_cam* camera, const sapp_event* e, HMM_V
             mouse_offset.Y = last_touch->Y - touch->pos_y;
 
             // reduce speed of touch controls
-            mouse_offset.X *= 0.3;
-            mouse_offset.Y *= 0.3;
+            mouse_offset.X *= 0.3f;
+            mouse_offset.Y *= 0.3f;
 
             move_orbital_camera(camera, mouse_offset);
         }
@@ -878,7 +879,7 @@ void handle_input_orbital(struct orbital_cam* camera, const sapp_event* e, HMM_V
 
             float diff = length0 - length1;
             // reduce speed of touch controls
-            diff *= 0.1;
+            diff *= 0.1f;
 
             zoom_orbital_camera(camera, diff);
         }

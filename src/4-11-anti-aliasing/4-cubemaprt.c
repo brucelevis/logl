@@ -3,7 +3,7 @@
 //  Cubemap as render target.
 //------------------------------------------------------------------------------
 #define HANDMADE_MATH_IMPLEMENTATION
-#define HANDMADE_MATH_NO_SSE
+#define HANDMADE_MATH_NO_SIMD
 #include "HandmadeMath.h"
 #include "sokol_gfx.h"
 #include "sokol_app.h"
@@ -44,7 +44,7 @@ typedef struct {
 typedef struct {
     sg_image cubemap;
     sg_sampler smp;
-    sg_pass offscreen_pass[SG_CUBEFACE_NUM];
+    sg_attachments offscreen_pass[SG_CUBEFACE_NUM];
     sg_pass_action offscreen_pass_action;
     sg_pass_action display_pass_action;
     mesh_t cube;
@@ -75,8 +75,8 @@ static inline float rnd(float min_val, float max_val) {
 
 void init(void) {
     sg_setup(&(sg_desc){
-        .context = sapp_sgcontext(),
-        //.logger.func = slog_func,
+        .environment = sglue_environment(),
+        .logger.func = slog_func,
     });
     __dbgui_setup(DISPLAY_SAMPLE_COUNT);
 
@@ -102,12 +102,12 @@ void init(void) {
 
     // create 6 pass objects, one for each cubemap face
     for (int i = 0; i < SG_CUBEFACE_NUM; i++) {
-        app.offscreen_pass[i] = sg_make_pass(&(sg_pass_desc){
-            .color_attachments[0] = {
+        app.offscreen_pass[i] = sg_make_attachments(&(sg_attachments_desc){
+            .colors[0] = {
                 .image = app.cubemap,
                 .slice = i
             },
-            .depth_stencil_attachment.image = depth_img,
+            .depth_stencil.image = depth_img,
             .label = "offscreen-pass"
         });
     }
@@ -199,7 +199,7 @@ void frame(void) {
     for (int i = 0; i < NUM_SHAPES; i++) {
         app.shapes[i].angle += app.shapes[i].angular_velocity * t * 0.01;
         HMM_Mat4 scale = HMM_Scale(HMM_V3(0.25f, 0.25f, 0.25f));
-        HMM_Mat4 rot = HMM_Rotate_RH(app.shapes[i].angle, app.shapes[i].axis);
+        HMM_Mat4 rot = HMM_Rotate_RH(HMM_AngleRad(app.shapes[i].angle), app.shapes[i].axis);
         HMM_Mat4 trans = HMM_Translate(HMM_V3(0.0f, 0.0f, app.shapes[i].radius));
         app.shapes[i].model = HMM_MulM4(rot, HMM_MulM4(trans, scale));
     }
@@ -227,7 +227,7 @@ void frame(void) {
     };
     #endif
     for (int face = 0; face < SG_CUBEFACE_NUM; face++) {
-        sg_begin_pass(app.offscreen_pass[face], &app.offscreen_pass_action);
+        sg_begin_pass(&(sg_pass){ .action = app.offscreen_pass_action, .attachments = app.offscreen_pass[face] });
         HMM_Mat4 view = HMM_LookAt_RH(HMM_V3(0.0f, 0.0f, 0.0f), center_and_up[face][0], center_and_up[face][1]);
         HMM_Mat4 view_proj = HMM_MulM4(app.offscreen_proj, view);
         draw_cubes(app.offscreen_shapes_pip, HMM_V3(0.0f, 0.0f, 0.0f), view_proj);
@@ -237,7 +237,7 @@ void frame(void) {
     // render the default pass
     const int w = sapp_width();
     const int h = sapp_height();
-    sg_begin_default_pass(&app.display_pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = app.display_pass_action, .swapchain = sglue_swapchain() });
 
     HMM_Vec3 eye_pos = HMM_V3(0.0f, 0.0f, 30.0f);
     HMM_Mat4 proj = HMM_Perspective_RH_NO(45.0f, (float)w/(float)h, 0.01f, 100.0f);
@@ -249,8 +249,8 @@ void frame(void) {
 
     // render a big cube in the middle with environment mapping
     app.rx += 0.1f * 60.0f * t * 0.1; app.ry += 0.2f * 60.0f * t * 0.1;
-    HMM_Mat4 rxm = HMM_Rotate_RH(app.rx, HMM_V3(1.0f, 0.0f, 0.0f));
-    HMM_Mat4 rym = HMM_Rotate_RH(app.ry, HMM_V3(0.0f, 1.0f, 0.0f));
+    HMM_Mat4 rxm = HMM_Rotate_RH(HMM_AngleRad(app.rx), HMM_V3(1.0f, 0.0f, 0.0f));
+    HMM_Mat4 rym = HMM_Rotate_RH(HMM_AngleRad(app.ry), HMM_V3(0.0f, 1.0f, 0.0f));
     HMM_Mat4 model = HMM_MulM4(HMM_MulM4(rxm, rym), HMM_Scale(HMM_V3(2.0f, 2.0f, 2.f)));
     sg_apply_pipeline(app.display_cube_pip);
     sg_apply_bindings(&(sg_bindings){
@@ -292,7 +292,7 @@ sapp_desc sokol_main(int argc, char* argv[]) {
         .window_title = "Cubemap Render Target (sokol-app)",
         .icon.sokol_default = true,
         .high_dpi = true,
-        //.logger.func = slog_func,
+        .logger.func = slog_func,
     };
 }
 

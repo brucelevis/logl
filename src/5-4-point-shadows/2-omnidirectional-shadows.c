@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "sokol/sokol_helper.h"
-#include "hmm/HandmadeMath.h"
+#include "sokol_helper.h"
+#include "HandmadeMath.h"
 #include "2-omnidirectional-shadows.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -16,7 +16,7 @@ static const int SHADOW_HEIGHT = 1024;
 static struct {
     struct {
         sg_pass_action pass_action;
-        sg_pass pass[6];
+        sg_attachments attachment[6];
         sg_pipeline pip;
         sg_bindings bind;
     } depth;
@@ -66,9 +66,9 @@ static void init(void) {
 
     /* one pass for each cubemap face */
     for (size_t i = 0; i < 6; ++i) {
-        state.depth.pass[i] = sg_make_pass(&(sg_pass_desc){
-            .color_attachments[0] = { .image = color_img, .slice = i },
-            .depth_stencil_attachment = {  .image = depth_img, .slice = i },
+        state.depth.attachment[i] = sg_make_attachments(&(sg_attachments_desc){
+            .colors[0] = { .image = color_img, .slice = i },
+            .depth_stencil = {  .image = depth_img, .slice = i },
             .label = "shadow-map-pass"
         });
     }
@@ -230,7 +230,7 @@ void draw_cubes() {
     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, &SG_RANGE(vs_params));
     sg_draw(0, 36, 1);
     translate = HMM_Translate(HMM_V3(-1.5f, 2.f, -3.f));
-    HMM_Mat4 rotate = HMM_Rotate_RH(60.f, HMM_NormV3(HMM_V3(1.f, 0.f, 1.f)));
+    HMM_Mat4 rotate = HMM_Rotate_RH(HMM_AngleDeg(60.f), HMM_NormV3(HMM_V3(1.f, 0.f, 1.f)));
     scale = HMM_Scale(HMM_V3(.75f, .75f, .75f));
     vs_params.model = HMM_MulM4(HMM_MulM4(translate, rotate), scale);
     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, &SG_RANGE(vs_params));
@@ -269,7 +269,10 @@ void frame(void) {
 
     /* render depth of scene to cubemap (from light's perspective) */
     for (size_t i = 0; i < 6; ++i) {
-        sg_begin_pass(state.depth.pass[i], &state.depth.pass_action);
+        sg_begin_pass(&(sg_pass){
+            .action = state.depth.pass_action,
+            .attachments = state.depth.attachment[i],
+        });
         sg_apply_pipeline(state.depth.pip);
         sg_apply_bindings(&state.depth.bind);
 
@@ -291,7 +294,10 @@ void frame(void) {
     }
 
     /* render scene as normal using the generated depth/shadow map */
-    sg_begin_default_pass(&state.shadows.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){
+        .action = state.shadows.pass_action,
+        .swapchain = sglue_swapchain(),
+    });
     sg_apply_pipeline(state.shadows.pip);
     sg_apply_bindings(&state.shadows.bind);
 

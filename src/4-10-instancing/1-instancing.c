@@ -4,7 +4,7 @@
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
-#include "hmm/HandmadeMath.h"
+#include "HandmadeMath.h"
 #include "1-instancing.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -69,7 +69,7 @@ static void init(void) {
 }
 
 void frame(void) {
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = state.pass_action, .swapchain = sglue_swapchain() });
     sg_apply_pipeline(state.pip);
     sg_apply_bindings(&state.bind);
 

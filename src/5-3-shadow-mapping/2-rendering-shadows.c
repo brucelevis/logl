@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "sokol/sokol_helper.h"
-#include "hmm/HandmadeMath.h"
+#include "sokol_helper.h"
+#include "HandmadeMath.h"
 #include "2-rendering-shadows.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -13,7 +13,7 @@
 static struct {
     struct {
         sg_pass_action pass_action;
-        sg_pass pass;
+        sg_attachments attachment;
         sg_pipeline pip;
         sg_bindings bind_cube;
         sg_bindings bind_plane;
@@ -64,9 +64,9 @@ static void init(void) {
     img_desc.pixel_format = SG_PIXELFORMAT_DEPTH;
     img_desc.label = "shadow-map-depth-image";
     sg_image depth_img = sg_make_image(&img_desc);
-    state.depth.pass = sg_make_pass(&(sg_pass_desc){
-        .color_attachments[0].image = color_img,
-        .depth_stencil_attachment.image = depth_img,
+    state.depth.attachment = sg_make_attachments(&(sg_attachments_desc){
+        .colors[0].image = color_img,
+        .depth_stencil.image = depth_img,
         .label = "shadow-map-pass"
     });
 
@@ -231,7 +231,7 @@ void draw_cubes() {
     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, &SG_RANGE(vs_params));
     sg_draw(0, 36, 1);
     translate = HMM_Translate(HMM_V3(-1.f, 0.f, 2.f));
-    HMM_Mat4 rotate = HMM_Rotate_RH(60.f, HMM_NormV3(HMM_V3(1.f, 0.f, 1.f)));
+    HMM_Mat4 rotate = HMM_Rotate_RH(HMM_AngleDeg(60.f), HMM_NormV3(HMM_V3(1.f, 0.f, 1.f)));
     scale = HMM_Scale(HMM_V3(.25f, .25f, .25f));
     vs_params.model = HMM_MulM4(HMM_MulM4(translate, rotate), scale);
     sg_apply_uniforms(SG_SHADERSTAGE_VS, SLOT_vs_params, &SG_RANGE(vs_params));
@@ -242,7 +242,10 @@ void frame(void) {
     lopgl_update();
 
     /* 1. render depth of scene to texture (from light's perspective) */
-    sg_begin_pass(state.depth.pass, &state.depth.pass_action);
+    sg_begin_pass(&(sg_pass){
+        .action = state.depth.pass_action,
+        .attachments = state.depth.attachment,
+    });
     sg_apply_pipeline(state.depth.pip);
 
     /* plane */
@@ -262,7 +265,10 @@ void frame(void) {
     sg_end_pass();
 
     /* 2. render scene as normal using the generated depth/shadow map */
-    sg_begin_default_pass(&state.shadows.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){
+        .action = state.shadows.pass_action,
+        .swapchain = sglue_swapchain(),
+    });
     sg_apply_pipeline(state.shadows.pip);
 
     /* plane */

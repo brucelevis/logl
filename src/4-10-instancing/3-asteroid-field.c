@@ -3,8 +3,8 @@
 //------------------------------------------------------------------------------
 #include "sokol_app.h"
 #include "sokol_gfx.h"
-#include "sokol/sokol_helper.h"
-#include "hmm/HandmadeMath.h"
+#include "sokol_helper.h"
+#include "HandmadeMath.h"
 #include "3-asteroid-field.glsl.h"
 #define LOPGL_APP_IMPL
 #include "../lopgl_app.h"
@@ -176,7 +176,7 @@ static void init(void) {
 
         // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
         float rot_angle = (rand() % 360);
-        model = HMM_MulM4(model, HMM_Rotate_RH(rot_angle, HMM_V3(0.4f, 0.6f, 0.8f)));
+        model = HMM_MulM4(model, HMM_Rotate_RH(HMM_AngleDeg(rot_angle), HMM_V3(0.4f, 0.6f, 0.8f)));
 
         // 4. now add to list of matrices
         state.rock_transforms[i] = model;
@@ -186,7 +186,7 @@ static void init(void) {
 void frame(void) {
     lopgl_update();
 
-    sg_begin_default_pass(&state.pass_action, sapp_width(), sapp_height());
+    sg_begin_pass(&(sg_pass){ .action = state.pass_action, .swapchain = sglue_swapchain() });
 
     HMM_Mat4 view = lopgl_view_matrix();
     HMM_Mat4 projection = HMM_Perspective_RH_NO(lopgl_fov(), (float)sapp_width() / (float)sapp_height(), 0.1f, 1000.0f);
